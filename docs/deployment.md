@@ -2,7 +2,7 @@
 
 ## 已验证的交付物
 
-本机使用真实MySQL运行完整应用。GitHub Actions已验证Linux下的前端构建、后端测试、MySQL集成及Docker镜像构建。云端构建通过不等于网站已部署。
+本机使用真实MySQL运行完整应用。GitHub Actions已验证Linux下的前端构建、后端测试、MySQL集成及Docker镜像构建，并实际启动该镜像，连接MySQL和本地SMTP完成19项购物与邮件检查。记录见 `docs/verification.md`；临时测试容器在检查后清理，不是对外开放的网站。
 
 ## 正式部署所需配置
 

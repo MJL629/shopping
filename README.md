@@ -45,7 +45,7 @@ Spring Boot + Vue + MySQL 校园生活选物商城，包含商品浏览、账号
 
 `python scripts/local.py build` 运行前端构建与后端测试。`python scripts/smoke_test.py` 直接检查运行中的HTTP服务、MySQL及SMTP测试收件。
 
-`MySqlIntegrationTest` 在配置MYSQL_TEST_URL、MYSQL_TEST_USER和MYSQL_TEST_PASSWORD时启用，其余自动测试默认使用H2兼容模式。GitHub Actions自动验证构建、数据库与部署镜像。
+`MySqlIntegrationTest` 在配置MYSQL_TEST_URL、MYSQL_TEST_USER和MYSQL_TEST_PASSWORD时启用，其余自动测试默认使用H2兼容模式。GitHub Actions自动验证构建、数据库与部署镜像，并启动镜像运行19项购物与SMTP检查。实际验证记录见 `docs/verification.md`。
 
 `Dockerfile`、`compose.yaml` 和 `deploy/Caddyfile` 提供应用、持久化MySQL及HTTPS入口。复制 `.env.example` 为 `.env`，填写域名、数据库及测试账号密码、SMTP信息后部署。正式云端与校园网长期访问仍待验收，本机地址不能代替线上地址。
 
