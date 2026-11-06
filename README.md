@@ -6,7 +6,7 @@ Spring Boot + Vue + MySQL 校园生活选物商城，包含商品浏览、账号
 
 - 姓名：马嘉玲
 - 学号：202430451254
-- GitHub：https://github.com/MJL629/shiguang-campus-shop
+- GitHub：https://github.com/MJL629/shopping
 - 本机运行地址：http://127.0.0.1:18080
 - 正式线上地址：待完成云端部署和校园网验收。
 
