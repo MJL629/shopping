@@ -25,7 +25,7 @@ Spring Boot + Vue + MySQL 校园生活选物商城，包含商品浏览、账号
 
 ## 此电脑启动
 
-工具和数据库已配置，运行 `python scripts/local.py start`，再打开本机地址。
+工具和数据库已配置，可双击项目根目录的 `打开商城.cmd`，或运行 `python scripts/local.py start`，再打开本机地址。`停止商城.cmd`仅停止本项目网页服务，保留数据库数据。
 
 管理员用户名为 `admin`，体验顾客为 `demo`。随机密码位于本机 `.local/runtime.json`，不得提交到仓库，也可以使用虚构资料注册新顾客。
 
