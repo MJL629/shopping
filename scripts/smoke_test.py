@@ -1,9 +1,9 @@
 # coding: utf-8
 """AI-assisted real HTTP/MySQL smoke test. Uses fictional test identities, never external email delivery."""
 from pathlib import Path
-import http.cookiejar, json, time, urllib.error, urllib.request, uuid
+import http.cookiejar, json, time, urllib.error, urllib.request, uuid, os
 ROOT=Path(__file__).resolve().parents[1]
-BASE='http://127.0.0.1:18080/api'
+BASE=os.environ.get('SHOP_TEST_BASE','http://127.0.0.1:18080/api')
 checks=[]
 class Client:
     def __init__(self):
@@ -25,7 +25,8 @@ class Client:
 def check(name):checks.append(name);print('PASS',name,flush=True)
 
 def main():
-    config=json.loads((ROOT/'.local/runtime.json').read_text())
+    (ROOT/'.local').mkdir(exist_ok=True)
+    config=({'adminPassword':os.environ['SHOP_TEST_ADMIN_PASSWORD'],'customerPassword':os.environ['SHOP_TEST_CUSTOMER_PASSWORD']} if os.environ.get('SHOP_TEST_ADMIN_PASSWORD') and os.environ.get('SHOP_TEST_CUSTOMER_PASSWORD') else json.loads((ROOT/'.local/runtime.json').read_text()))
     customer=Client();name='qa_'+uuid.uuid4().hex[:12]
     customer.call('/cart',status=401);check('anonymous cart rejected')
     customer.call('/auth/register','POST',{'username':name,'displayName':'QA Customer','email':name+'@example.test','password':'Qa-Only-Password-123'},status=403,csrf=False);check('CSRF required')

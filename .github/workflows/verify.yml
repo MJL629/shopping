@@ -60,3 +60,43 @@ jobs:
           retention-days: 7
       - name: Build deployment image
         run: docker build -t shiguang-shop:ci .
+      - name: Start SMTP test inbox
+        run: |
+          mkdir -p .local
+          python3 scripts/mail_capture.py > .local/smtp-ci.log 2>&1 &
+      - name: Run built application with MySQL
+        env:
+          SHOP_TEST_ADMIN_PASSWORD: Ci-Test-Only-Admin-2026
+          SHOP_TEST_CUSTOMER_PASSWORD: Ci-Test-Only-Customer-2026
+        run: |
+          docker run -d --name shiguang-ci --network host -e SERVER_ADDRESS=127.0.0.1 -e PORT=18081 -e DB_URL="$MYSQL_TEST_URL" -e DB_USERNAME="$MYSQL_TEST_USER" -e DB_PASSWORD="$MYSQL_TEST_PASSWORD" -e DEMO_ADMIN_PASSWORD="$SHOP_TEST_ADMIN_PASSWORD" -e DEMO_CUSTOMER_PASSWORD="$SHOP_TEST_CUSTOMER_PASSWORD" -e DEMO_SEED_ORDERS=true shiguang-shop:ci
+          python3 - <<'PY'
+          import json,time,urllib.request
+          for attempt in range(90):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:18081/api/health',timeout=2) as response:
+                      if json.load(response).get('status')=='UP':
+                          print('Built image is ready with MySQL');break
+              except OSError: pass
+              time.sleep(1)
+          else: raise SystemExit('Deployment image did not become ready')
+          PY
+      - name: Verify container shopping and SMTP flow
+        env:
+          SHOP_TEST_BASE: http://127.0.0.1:18081/api
+          SHOP_TEST_ADMIN_PASSWORD: Ci-Test-Only-Admin-2026
+          SHOP_TEST_CUSTOMER_PASSWORD: Ci-Test-Only-Customer-2026
+        run: python3 scripts/smoke_test.py
+      - name: Save deployment runtime evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-runtime-evidence
+          path: |
+            .local/smoke-report.json
+            .local/mailbox/
+          retention-days: 7
+      - name: Deployment test logs and cleanup
+        if: always()
+        run: |
+          docker logs shiguang-ci || true
+          docker rm -f shiguang-ci || true
