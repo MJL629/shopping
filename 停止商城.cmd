@@ -1,4 +1,5 @@
 @echo off
+rem AI-assisted local stop shortcut with Codex.
 setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
