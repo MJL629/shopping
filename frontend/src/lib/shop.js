@@ -1,6 +1,7 @@
 // AI-assisted shared UI state with Codex.
 import { reactive } from "vue";
 import { request, session, setAuthenticationRequired } from "./api";
+import { routeFromHash } from "./route.js";
 export const shop = reactive({
   user: null,
   ready: false,
@@ -8,7 +9,7 @@ export const shop = reactive({
   cartQuantity: 0,
   toast: "",
   toastKind: "success",
-  route: "/",
+  route: routeFromHash(window.location.hash),
   pendingProduct: null,
   previousUserId: null,
   checkoutDraft: null,

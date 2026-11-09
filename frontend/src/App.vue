@@ -8,9 +8,10 @@ import AdminView from "./views/AdminView.vue";
 import AuthDialog from "./components/AuthDialog.vue";
 import { shop, initialize, notify, navigate } from "./lib/shop";
 import { request, session } from "./lib/api";
+import { routeFromHash } from "./lib/route.js";
 function routeChanged() {
   const hash = window.location.hash.slice(1);
-  shop.route = hash.startsWith("/") ? hash.split("?")[0] : "/";
+  shop.route = routeFromHash(hash);
   if (hash.startsWith("/") && shop.route !== "/")
     nextTick(() => window.scrollTo({ top: 0 }));
 }
