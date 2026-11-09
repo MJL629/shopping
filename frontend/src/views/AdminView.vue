@@ -8,6 +8,24 @@ const tab = ref("overview"),
   products = ref([]),
   orders = ref([]),
   mails = ref([]);
+const formatDate = (value) =>
+  `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+const endDate = new Date(),
+  startDate = new Date();
+startDate.setDate(startDate.getDate() - 13);
+const fromDate = ref(formatDate(startDate)),
+  toDate = ref(formatDate(endDate)),
+  includeSamples = ref(true),
+  orderKeyword = ref(""),
+  uploading = ref(false),
+  removeDialog = ref(null),
+  removing = ref(null);
+const reportQuery = () =>
+  new URLSearchParams({
+    from: fromDate.value,
+    to: toDate.value,
+    includeSamples: String(includeSamples.value),
+  });
 const busy = ref(false),
   loading = ref(true),
   error = ref(""),
@@ -38,10 +56,15 @@ const pages = computed(() =>
 const trend = computed(() => {
   const data = stats.value?.trend || [],
     days = [];
-  for (let index = 13; index >= 0; index--) {
-    const date = new Date();
-    date.setDate(date.getDate() - index);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const range = stats.value?.range;
+  const first = new Date((range?.from || fromDate.value) + "T12:00:00"),
+    last = new Date((range?.to || toDate.value) + "T12:00:00");
+  for (
+    let date = new Date(first);
+    date <= last && days.length < 366;
+    date.setDate(date.getDate() + 1)
+  ) {
+    const key = formatDate(date);
     const row = data.find((r) => String(r.day).slice(0, 10) === key);
     days.push({ day: key.slice(5), value: Number(row?.revenue || 0) });
   }
@@ -55,7 +78,8 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    if (tab.value === "overview") stats.value = await request("/admin/stats");
+    if (tab.value === "overview")
+      stats.value = await request("/admin/stats?" + reportQuery());
     if (tab.value === "products") {
       const data = await request(
         "/admin/products?" +
@@ -73,6 +97,7 @@ async function load() {
         "/admin/orders?" +
           new URLSearchParams({
             status: orderStatus.value,
+            keyword: orderKeyword.value,
             page: page.value,
             size: 10,
           }),
@@ -85,6 +110,59 @@ async function load() {
     error.value = e.message;
   } finally {
     loading.value = false;
+  }
+}
+async function uploadImage(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) {
+    notify("图片不能超过4MB", "error");
+    event.target.value = "";
+    return;
+  }
+  uploading.value = true;
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    const result = await request("/admin/images", { method: "POST", body });
+    form.value.imageUrl = result.imageUrl;
+    notify("图片已上传，可预览后保存商品。");
+  } catch (e) {
+    notify(e.message, "error");
+  } finally {
+    uploading.value = false;
+    event.target.value = "";
+  }
+}
+function askRemove(product) {
+  removing.value = product;
+  removeDialog.value.showModal();
+}
+async function restore(product) {
+  try {
+    await request("/admin/products/" + product.id + "/restore", {
+      method: "POST",
+    });
+    notify("商品已重新上架。");
+    await load();
+  } catch (e) {
+    notify(e.message, "error");
+  }
+}
+async function exportReport() {
+  try {
+    const blob = await request("/admin/reports/sales.csv?" + reportQuery(), {
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(blob),
+      anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download =
+      "拾光销售报表-" + fromDate.value + "-" + toDate.value + ".csv";
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    notify(e.message, "error");
   }
 }
 function selectTab(value) {
@@ -110,7 +188,7 @@ function edit(product) {
   editor.value.showModal();
 }
 async function save() {
-  if (busy.value) return;
+  if (busy.value || uploading.value) return;
   busy.value = true;
   try {
     await request(
@@ -132,6 +210,7 @@ async function remove(product) {
   try {
     await request("/admin/products/" + product.id, { method: "DELETE" });
     notify("商品已下架，历史订单资料保留。");
+    removeDialog.value.close();
     await load();
   } catch (e) {
     notify(e.message, "error");
@@ -208,6 +287,24 @@ onMounted(load);
     <button @click="load">重新加载</button>
   </div>
   <section v-else-if="tab === 'overview' && stats" class="dashboard">
+    <form class="report-controls" @submit.prevent="load">
+      <label>开始日期<input v-model="fromDate" type="date" required /></label
+      ><label>结束日期<input v-model="toDate" type="date" required /></label
+      ><label class="checkbox-label"
+        ><input
+          v-model="includeSamples"
+          type="checkbox"
+        />包含预置演示订单</label
+      ><button class="primary">更新统计</button
+      ><button type="button" class="secondary" @click="exportReport">
+        导出 CSV
+      </button>
+    </form>
+    <p class="muted">
+      订单数量按创建日期筛选，销售额按付款日期筛选。当前{{
+        stats.range.includeSamples ? "包含" : "不包含"
+      }}预置演示订单。
+    </p>
     <div class="metric-grid">
       <article>
         <span>已付款销售额</span
@@ -233,7 +330,7 @@ onMounted(load);
     <div class="dashboard-columns">
       <article class="chart-panel">
         <div class="panel-title">
-          <h2>近14天销售趋势</h2>
+          <h2>所选日期销售趋势</h2>
           <span>按付款日期统计</span>
         </div>
         <div class="bar-chart" role="img" aria-label="最近14天每天销售额柱状图">
@@ -375,9 +472,17 @@ onMounted(load);
                   v-if="product.active"
                   class="text-button danger"
                   :disabled="busy"
-                  @click="remove(product)"
+                  @click="askRemove(product)"
                 >
                   下架
+                </button>
+                <button
+                  v-else
+                  class="text-button"
+                  :disabled="busy"
+                  @click="restore(product)"
+                >
+                  重新上架
                 </button>
               </div>
             </td>
@@ -389,6 +494,21 @@ onMounted(load);
   </section>
   <section v-else-if="tab === 'orders'">
     <div class="admin-toolbar">
+      <form
+        class="search"
+        @submit.prevent="
+          page = 1;
+          load();
+        "
+      >
+        <label class="sr-only" for="order-search">按订单号查询</label
+        ><input
+          id="order-search"
+          v-model="orderKeyword"
+          maxlength="80"
+          placeholder="输入完整或部分订单号"
+        /><button>查询 ↗</button>
+      </form>
       <label class="select-label"
         >订单状态<select
           v-model="orderStatus"
@@ -544,7 +664,7 @@ onMounted(load);
       <button
         class="close"
         aria-label="关闭商品编辑"
-        :disabled="busy"
+        :disabled="busy || uploading"
         @click="editor.close()"
       >
         ×
@@ -582,6 +702,16 @@ onMounted(load);
           maxlength="255"
           placeholder="/images/notebook.svg"
       /></label>
+      <div class="upload-panel">
+        <img :src="form.imageUrl" alt="商品图片预览" /><label
+          >{{ uploading ? "正在上传…" : "上传商品封面（JPEG / PNG，不超过4MB）"
+          }}<input
+            type="file"
+            accept="image/jpeg,image/png"
+            :disabled="uploading || busy"
+            @change="uploadImage"
+        /></label>
+      </div>
       <div class="image-presets">
         <button
           v-for="name in ['notebook', 'bag', 'bookmark', 'book-fallback']"
@@ -601,10 +731,28 @@ onMounted(load);
         ></textarea></label
       ><label class="checkbox-label"
         ><input v-model="form.active" type="checkbox" /> 在店铺展示此商品</label
-      ><button class="primary wide" :disabled="busy">
+      ><button class="primary wide" :disabled="busy || uploading">
         {{ busy ? "正在保存…" : "保存商品资料" }}
       </button>
     </form>
+  </dialog>
+  <dialog
+    ref="removeDialog"
+    class="confirm-dialog"
+    aria-labelledby="remove-title"
+  >
+    <h2 id="remove-title">确认下架这件商品？</h2>
+    <p>{{ removing?.name }}</p>
+    <p class="muted">
+      下架后不再接受新加入购物袋，历史订单会保留，也可以重新上架。
+    </p>
+    <div class="button-row">
+      <button class="secondary" :disabled="busy" @click="removeDialog.close()">
+        继续保留</button
+      ><button class="primary" :disabled="busy" @click="remove(removing)">
+        确认下架
+      </button>
+    </div>
   </dialog>
   <dialog
     ref="shippingDialog"

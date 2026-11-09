@@ -2,8 +2,10 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { addToCart, shop } from "./lib/shop";
-import { parseCatalogState, catalogHash } from './lib/catalog-state';
-const initialState = window.location.hash.includes('?') ? parseCatalogState(window.location.hash) : shop.catalogState;
+import { parseCatalogState, catalogHash } from "./lib/catalog-state";
+const initialState = window.location.hash.includes("?")
+  ? parseCatalogState(window.location.hash)
+  : shop.catalogState;
 async function addSelected() {
   dialog.value.close();
   await addToCart(selected.value.id);
@@ -18,11 +20,33 @@ const keyword = ref(initialState.keyword),
   loading = ref(false),
   error = ref("");
 const selected = ref(null),
+  currentImage = ref(""),
   dialog = ref(null),
   detailError = ref("");
 const size = 9,
   pages = computed(() => Math.max(1, Math.ceil(total.value / size)));
 let listRequest, detailRequest;
+function parseList(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+const gallery = computed(() =>
+  selected.value
+    ? [
+        ...new Set([
+          selected.value.imageUrl,
+          ...parseList(selected.value.galleryJson),
+        ]),
+      ]
+    : [],
+);
+const specifications = computed(() =>
+  parseList(selected.value?.specificationsJson),
+);
 async function readJson(url, signal) {
   const response = await fetch(url, { signal });
   if (!response.ok)
@@ -34,8 +58,14 @@ async function readJson(url, signal) {
   return response.json();
 }
 function remember() {
-  shop.catalogState = {keyword: keyword.value, category: category.value, sort: sort.value, page: page.value, scrollY: window.scrollY};
-  window.history.replaceState(null, '', catalogHash(shop.catalogState));
+  shop.catalogState = {
+    keyword: keyword.value,
+    category: category.value,
+    sort: sort.value,
+    page: page.value,
+    scrollY: window.scrollY,
+  };
+  window.history.replaceState(null, "", catalogHash(shop.catalogState));
 }
 async function loadProducts(scrollToList = false) {
   remember();
@@ -66,7 +96,9 @@ async function loadProducts(scrollToList = false) {
   }
   if (listRequest === request && !error.value && scrollToList) {
     await nextTick();
-    document.getElementById('collection')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    document
+      .getElementById("collection")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 function search() {
@@ -93,6 +125,7 @@ async function showProduct(id) {
   detailError.value = "";
   try {
     selected.value = await readJson("/api/products/" + id, request.signal);
+    currentImage.value = selected.value.imageUrl;
     await nextTick();
     if (!dialog.value.open) dialog.value.showModal();
   } catch (e) {
@@ -102,7 +135,8 @@ async function showProduct(id) {
 onMounted(async () => {
   const restoreY = initialState.scrollY || 0;
   await loadProducts();
-  await nextTick(); window.scrollTo({top: restoreY, behavior:'instant'});
+  await nextTick();
+  window.scrollTo({ top: restoreY, behavior: "instant" });
   try {
     categories.value = await readJson("/api/categories");
   } catch {
@@ -204,7 +238,9 @@ const money = (value) => Number(value).toFixed(2);
                 "
                 :class="{
                   'study-cover': product.sourceType === 'OPEN_LIBRARY',
-                  'catalog-image': product.sourceType === 'DUMMYJSON',
+                  'catalog-image': ['DUMMYJSON', 'MERCHANT_CATALOG'].includes(
+                    product.sourceType,
+                  ),
                 }"
                 :src="product.imageUrl"
                 :alt="product.name + '商品图片'"
@@ -261,12 +297,32 @@ const money = (value) => Number(value).toFixed(2);
           ×
         </button>
       </div>
-      <img
-        @error="(event) => (event.target.src = '/images/book-fallback.svg')"
-        class="dialog-image"
-        :src="selected.imageUrl"
-        :alt="selected.name + '商品图片'"
-      />
+      <div class="detail-gallery">
+        <img
+          @error="(event) => (event.target.src = '/images/book-fallback.svg')"
+          class="dialog-image"
+          :src="currentImage"
+          :alt="selected.name + '商品图片'"
+        />
+        <div
+          v-if="gallery.length > 1"
+          class="gallery-thumbnails"
+          aria-label="商品图片"
+        >
+          <button
+            v-for="(image, index) in gallery"
+            :key="image"
+            :aria-label="'查看商品图片' + (index + 1)"
+            :aria-pressed="currentImage === image"
+            @click="currentImage = image"
+          >
+            <img
+              :src="image"
+              :alt="selected.name + '第' + (index + 1) + '张图片'"
+            />
+          </button>
+        </div>
+      </div>
       <div class="dialog-info">
         <span class="kicker">{{ selected.category }}</span>
         <h2 id="detail-title">{{ selected.name }}</h2>
@@ -280,6 +336,18 @@ const money = (value) => Number(value).toFixed(2);
           {{ selected.originalName }}
         </p>
         <p>{{ selected.description }}</p>
+        <dl v-if="specifications.length" class="product-specifications">
+          <template v-for="(spec, index) in specifications" :key="index"
+            ><dt>{{ spec.label }}</dt>
+            <dd>{{ spec.value }}</dd></template
+          >
+        </dl>
+        <p v-if="selected.sourcePrice" class="source-price">
+          原站参考价：{{ selected.sourceCurrency }}
+          {{ Number(selected.sourcePrice).toFixed(2) }} · 采集于
+          {{ selected.sourceObservedAt?.slice(0, 10)
+          }}<br />本站人民币金额为独立演示定价。
+        </p>
         <div class="stock">
           {{
             selected.stock > 0
@@ -289,9 +357,11 @@ const money = (value) => Number(value).toFixed(2);
         </div>
         <p v-if="selected.sourceType !== 'ORIGINAL'" class="source-note">
           {{
-            selected.sourceType === "OPEN_LIBRARY"
-              ? "真实书目资料 · Open Library"
-              : "电商原型目录 · DummyJSON"
+            selected.sourceType === "MERCHANT_CATALOG"
+              ? "真实商品资料 · " + selected.merchantName
+              : selected.sourceType === "OPEN_LIBRARY"
+                ? "真实书目资料 · Open Library"
+                : "电商原型目录 · DummyJSON"
           }}
           <a
             :href="selected.sourceUrl"

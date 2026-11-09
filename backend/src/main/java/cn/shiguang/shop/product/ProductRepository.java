@@ -10,7 +10,8 @@ import org.springframework.stereotype.Repository;
 public class ProductRepository {
   private static final String COLUMNS =
       "id, name, category, price, stock, image_url, tagline, description, brand, source_type,"
-          + " source_url, original_name";
+          + " source_url, original_name, gallery_json, specifications_json, source_price,"
+          + " source_currency, source_observed_at, merchant_name";
   // Parameter binding prevents SQL injection. ESCAPE makes %, _ and ! literal search characters.
   private static final String FILTER =
       " FROM product WHERE active = TRUE AND (:category = '' OR category = :category) AND (:keyword"
@@ -28,7 +29,9 @@ public class ProductRepository {
           case "price_asc" -> "price ASC, id ASC";
           case "price_desc" -> "price DESC, id ASC";
           case "newest" -> "id DESC";
-          default -> "id ASC";
+          default ->
+              "CASE source_type WHEN 'ORIGINAL' THEN 0 WHEN 'MERCHANT_CATALOG' THEN 1 WHEN"
+                  + " 'OPEN_LIBRARY' THEN 2 ELSE 3 END, id ASC";
         };
     String pattern = "%" + keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     long total =

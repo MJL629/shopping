@@ -8,14 +8,26 @@ const cart = ref({ items: [], totalAmount: 0, quantity: 0 }),
   busy = ref(false),
   error = ref("");
 const checkoutKey = ref(crypto.randomUUID());
-const address = ref(shop.checkoutDraft || {
-  recipientName: shop.user?.displayName || "",
-  recipientEmail: shop.user?.email || "",
-  recipientPhone: "",
-  shippingAddress: "",
-});
-watch(address, value => { shop.checkoutDraft = { ...value }; }, { deep: true, flush: 'sync' });
-function focusCheckout() { document.getElementById('checkout-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+const address = ref(
+  shop.checkoutDraft || {
+    recipientName: shop.user?.displayName || "",
+    recipientEmail: shop.user?.email || "",
+    recipientPhone: "",
+    shippingAddress: "",
+  },
+);
+watch(
+  address,
+  (value) => {
+    shop.checkoutDraft = { ...value };
+  },
+  { deep: true, flush: "sync" },
+);
+function focusCheckout() {
+  document
+    .getElementById("checkout-panel")
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 const validCart = computed(
   () =>
     cart.value.items.length > 0 &&
@@ -24,7 +36,8 @@ const validCart = computed(
 async function load() {
   loading.value = true;
   try {
-    cart.value = await refreshCart();
+    const result = await refreshCart();
+    if (result) cart.value = result;
   } catch (e) {
     error.value = e.message;
   } finally {
@@ -110,7 +123,10 @@ onMounted(load);
     <a class="primary" href="#/">去逛逛 ↗</a>
   </div>
   <div v-else class="checkout-layout">
-    <div class="checkout-steps" aria-label="下单步骤"><strong>01 查看购物袋</strong><span>02 填写收件资料</span><span>03 确认演示付款</span></div>
+    <div class="checkout-steps" aria-label="下单步骤">
+      <strong>01 查看购物袋</strong><span>02 填写收件资料</span
+      ><span>03 确认演示付款</span>
+    </div>
     <section class="cart-list" aria-label="购物袋商品">
       <article
         v-for="item in cart.items"
@@ -227,7 +243,13 @@ onMounted(load);
       </form>
     </aside>
   </div>
-  <aside v-if="cart.items.length" class="cart-dock checkout-dock"><div><strong>合计 ¥{{ money(cart.totalAmount) }}</strong><span>{{ cart.quantity }} 件商品 · 演示运费 ¥0</span></div><button class="primary" @click="focusCheckout">填写资料并下单 ↗</button></aside>
+  <aside v-if="cart.items.length" class="cart-dock checkout-dock">
+    <div>
+      <strong>合计 ¥{{ money(cart.totalAmount) }}</strong
+      ><span>{{ cart.quantity }} 件商品 · 演示运费 ¥0</span>
+    </div>
+    <button class="primary" @click="focusCheckout">填写资料并下单 ↗</button>
+  </aside>
   <div v-if="error && !cart.items.length" class="state" role="alert">
     {{ error }}<button @click="load">重新加载</button>
   </div>

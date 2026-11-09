@@ -108,13 +108,21 @@ public class OrderService {
   }
 
   public OrderPage list(long userId, boolean admin, String status, int page, int size) {
+    return list(userId, admin, status, page, size, "");
+  }
+
+  public OrderPage list(
+      long userId, boolean admin, String status, int page, int size, String keyword) {
+    String pattern = "%" + keyword.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     String filter =
-        " FROM shop_order WHERE (:admin=TRUE OR user_id=:user) AND (:status='' OR status=:status)";
+        " FROM shop_order WHERE (:admin=TRUE OR user_id=:user) AND (:status='' OR status=:status)"
+            + " AND order_number LIKE :pattern ESCAPE '!'";
     long total =
         jdbc.sql("SELECT COUNT(*)" + filter)
             .param("admin", admin)
             .param("user", userId)
             .param("status", status)
+            .param("pattern", pattern)
             .query(Long.class)
             .single();
     List<OrderView> items =
@@ -126,6 +134,7 @@ public class OrderService {
             .param("admin", admin)
             .param("user", userId)
             .param("status", status)
+            .param("pattern", pattern)
             .param("limit", size)
             .param("offset", (long) (page - 1) * size)
             .query(OrderRow.class)

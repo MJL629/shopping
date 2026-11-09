@@ -19,6 +19,7 @@ RUN mvn -B -ntp -f backend/pom.xml verify
 FROM eclipse-temurin:21-jre-jammy
 RUN groupadd --system shop && useradd --system --gid shop --home /app shop
 WORKDIR /app
+RUN mkdir -p /app/uploads && chown shop:shop /app/uploads
 COPY --from=backend --chown=shop:shop /build/backend/target/shop-0.1.0.jar app.jar
 USER shop
 ENV PORT=8080 SERVER_ADDRESS=0.0.0.0 TZ=Asia/Shanghai

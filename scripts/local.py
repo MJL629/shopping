@@ -35,6 +35,7 @@ def environment(t, config):
     env['DB_URL'] = 'jdbc:mysql://127.0.0.1:13306/shiguang_shop?useUnicode=true&characterEncoding=UTF-8&connectionTimeZone=Asia/Shanghai'
     env['PORT'] = '18080'
     env['SERVER_ADDRESS'] = '127.0.0.1'
+    env['SHOP_UPLOAD_DIR'] = str(LOCAL / 'uploads')
     env['DEMO_ADMIN_PASSWORD'] = config['adminPassword']
     env['DEMO_CUSTOMER_PASSWORD'] = config['customerPassword']
     env['DEMO_SEED_ORDERS'] = 'true'

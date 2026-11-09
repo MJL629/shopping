@@ -15,4 +15,10 @@ public record Product(
     String brand,
     String sourceType,
     String sourceUrl,
-    String originalName) {}
+    String originalName,
+    String galleryJson,
+    String specificationsJson,
+    BigDecimal sourcePrice,
+    String sourceCurrency,
+    String sourceObservedAt,
+    String merchantName) {}

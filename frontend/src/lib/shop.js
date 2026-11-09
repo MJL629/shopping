@@ -12,14 +12,20 @@ export const shop = reactive({
   pendingProduct: null,
   previousUserId: null,
   checkoutDraft: null,
-  catalogState: { keyword: '', category: '', sort: 'featured', page: 1, scrollY: 0 },
+  catalogState: {
+    keyword: "",
+    category: "",
+    sort: "featured",
+    page: 1,
+    scrollY: 0,
+  },
 });
 setAuthenticationRequired(() => {
   if (shop.user) shop.previousUserId = shop.user.id;
   shop.user = null;
   shop.cartQuantity = 0;
   shop.authOpen = true;
-  notify('登录已过期，请重新登录后继续，购物袋仍会为你保留。', 'error');
+  notify("登录已过期，请重新登录后继续，购物袋仍会为你保留。", "error");
 });
 let toastTimeout;
 export function notify(text, kind = "success") {

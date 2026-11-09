@@ -38,7 +38,9 @@ services:
       MAIL_AUTH: "true"
       MAIL_STARTTLS: "true"
       SESSION_COOKIE_SECURE: "true"
+      SHOP_UPLOAD_DIR: /app/uploads
       TZ: Asia/Shanghai
+    volumes: ["shop-uploads:/app/uploads"]
     networks: [private, web]
   caddy:
     image: caddy:2
@@ -52,6 +54,7 @@ volumes:
   mysql-data:
   caddy-data:
   caddy-config:
+  shop-uploads:
 networks:
   private:
     internal: true

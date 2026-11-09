@@ -20,10 +20,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminController {
   private final JdbcClient jdbc;
   private final OrderService orders;
+  private final SalesReports reports;
 
-  public AdminController(JdbcClient jdbc, OrderService orders) {
+  public AdminController(JdbcClient jdbc, OrderService orders, SalesReports reports) {
     this.jdbc = jdbc;
     this.orders = orders;
+    this.reports = reports;
   }
 
   public record ProductEdit(
@@ -116,17 +118,26 @@ public class AdminController {
 
   private void checkImage(String image) {
     if (!image.matches("/images/[A-Za-z0-9_./-]+")
+        && !image.matches("/uploads/[a-f0-9-]{36}\\.(png|jpg)")
         && !image.matches("https://covers\\.openlibrary\\.org/b/id/[0-9]+-[SML]\\.jpg"))
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请使用本站图片路径或 Open Library 封面地址");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请上传图片，或选择本站已有商品图片");
     if (image.contains("..")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "图片路径无效");
+  }
+
+  @PostMapping("/products/{id}/restore")
+  public Map<String, Boolean> restore(@PathVariable long id) {
+    int changed = jdbc.sql("UPDATE product SET active=TRUE WHERE id=:id").param("id", id).update();
+    if (changed == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "商品不存在");
+    return Map.of("restored", true);
   }
 
   @GetMapping("/orders")
   public OrderService.OrderPage orders(
       @RequestParam(defaultValue = "") @Size(max = 30) String status,
+      @RequestParam(defaultValue = "") @Size(max = 80) String keyword,
       @RequestParam(defaultValue = "1") @Min(1) @Max(1000000) int page,
       @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
-    return orders.list(0, true, status, page, size);
+    return orders.list(0, true, status, page, size, keyword);
   }
 
   @PostMapping("/orders/{id}/ship")
@@ -135,54 +146,34 @@ public class AdminController {
   }
 
   @GetMapping("/stats")
-  public Map<String, Object> stats() {
-    var summary =
-        jdbc.sql(
-                "SELECT COUNT(*) AS totalOrders,COALESCE(SUM(CASE WHEN status IN"
-                    + " ('PAID','SHIPPED','COMPLETED') THEN total_amount ELSE 0 END),0) AS"
-                    + " revenue,COALESCE(SUM(CASE WHEN status='PENDING_PAYMENT' THEN 1 ELSE 0"
-                    + " END),0) AS pendingPayment,COALESCE(SUM(CASE WHEN status='PAID' THEN 1 ELSE"
-                    + " 0 END),0) AS pendingShipment FROM shop_order")
-            .query()
-            .singleRow();
-    long products =
-        jdbc.sql("SELECT COUNT(*) FROM product WHERE active=TRUE").query(Long.class).single();
-    long customers =
-        jdbc.sql("SELECT COUNT(*) FROM app_user WHERE role='CUSTOMER'").query(Long.class).single();
-    var trend =
-        jdbc.sql(
-                "SELECT CAST(paid_at AS DATE) AS day,SUM(total_amount) AS revenue,COUNT(*) AS"
-                    + " orders FROM shop_order WHERE status IN ('PAID','SHIPPED','COMPLETED') AND"
-                    + " paid_at>=:start GROUP BY CAST(paid_at AS DATE) ORDER BY day")
-            .param("start", LocalDate.now().minusDays(13).atStartOfDay())
-            .query()
-            .listOfRows();
-    var top =
-        jdbc.sql(
-                "SELECT i.product_id,i.product_name,SUM(i.quantity) AS"
-                    + " units,SUM(i.quantity*i.unit_price) AS revenue FROM order_item i JOIN"
-                    + " shop_order o ON o.id=i.order_id WHERE o.status IN"
-                    + " ('PAID','SHIPPED','COMPLETED') GROUP BY i.product_id,i.product_name ORDER"
-                    + " BY revenue DESC LIMIT 6")
-            .query()
-            .listOfRows();
-    var distribution =
-        jdbc.sql("SELECT status,COUNT(*) AS count FROM shop_order GROUP BY status")
-            .query()
-            .listOfRows();
-    return Map.of(
-        "summary",
-        summary,
-        "activeProducts",
-        products,
-        "customers",
-        customers,
-        "trend",
-        trend,
-        "topProducts",
-        top,
-        "statusDistribution",
-        distribution);
+  public Map<String, Object> stats(
+      @RequestParam(required = false)
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate from,
+      @RequestParam(required = false)
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate to,
+      @RequestParam(defaultValue = "true") boolean includeSamples) {
+    return reports.stats(from, to, includeSamples);
+  }
+
+  @GetMapping("/reports/sales.csv")
+  public org.springframework.http.ResponseEntity<byte[]> salesCsv(
+      @RequestParam(required = false)
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate from,
+      @RequestParam(required = false)
+          @org.springframework.format.annotation.DateTimeFormat(
+              iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+          LocalDate to,
+      @RequestParam(defaultValue = "true") boolean includeSamples) {
+    return org.springframework.http.ResponseEntity.ok()
+        .header("Content-Disposition", "attachment; filename=shiguang-sales.csv")
+        .contentType(org.springframework.http.MediaType.parseMediaType("text/csv;charset=UTF-8"))
+        .body(reports.csv(from, to, includeSamples));
   }
 
   @GetMapping("/mail")

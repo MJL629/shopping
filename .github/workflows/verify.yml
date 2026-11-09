@@ -87,12 +87,20 @@ jobs:
           SHOP_TEST_ADMIN_PASSWORD: Ci-Test-Only-Admin-2026
           SHOP_TEST_CUSTOMER_PASSWORD: Ci-Test-Only-Customer-2026
         run: python3 scripts/smoke_test.py
+      - name: Verify reports, merchant data and image uploads
+        env:
+          SHOP_TEST_BASE: http://127.0.0.1:18081/api
+          SHOP_TEST_ADMIN_PASSWORD: Ci-Test-Only-Admin-2026
+          SHOP_TEST_CUSTOMER_PASSWORD: Ci-Test-Only-Customer-2026
+        run: python3 scripts/admin_smoke_test.py
       - name: Save deployment runtime evidence
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: deployment-runtime-evidence
           path: |
             .local/smoke-report.json
+            .local/admin-smoke-report.json
             .local/mailbox/
           retention-days: 7
       - name: Deployment test logs and cleanup
