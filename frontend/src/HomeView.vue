@@ -285,7 +285,7 @@ const money = (value) => Number(value).toFixed(2);
     </section>
   </div>
 
-  <dialog ref="dialog" aria-labelledby="detail-title">
+  <dialog ref="dialog" class="product-dialog" aria-labelledby="detail-title">
     <template v-if="selected"
       ><div class="dialog-top">
         <span class="kicker">EVERYDAY FINDS</span
@@ -297,85 +297,93 @@ const money = (value) => Number(value).toFixed(2);
           ×
         </button>
       </div>
-      <div class="detail-gallery">
-        <img
-          @error="(event) => (event.target.src = '/images/book-fallback.svg')"
-          class="dialog-image"
-          :src="currentImage"
-          :alt="selected.name + '商品图片'"
-        />
-        <div
-          v-if="gallery.length > 1"
-          class="gallery-thumbnails"
-          aria-label="商品图片"
-        >
-          <button
-            v-for="(image, index) in gallery"
-            :key="image"
-            :aria-label="'查看商品图片' + (index + 1)"
-            :aria-pressed="currentImage === image"
-            @click="currentImage = image"
+      <div class="product-detail-body">
+        <div class="detail-gallery">
+          <img
+            @error="(event) => (event.target.src = '/images/book-fallback.svg')"
+            class="dialog-image"
+            :src="currentImage"
+            :alt="selected.name + '商品图片'"
+          />
+          <div
+            v-if="gallery.length > 1"
+            class="gallery-thumbnails"
+            aria-label="商品图片"
           >
-            <img
-              :src="image"
-              :alt="selected.name + '第' + (index + 1) + '张图片'"
-            />
-          </button>
+            <button
+              v-for="(image, index) in gallery"
+              :key="image"
+              :aria-label="'查看商品图片' + (index + 1)"
+              :aria-pressed="currentImage === image"
+              @click="currentImage = image"
+            >
+              <img
+                :src="image"
+                :alt="selected.name + '第' + (index + 1) + '张图片'"
+              />
+            </button>
+          </div>
+        </div>
+        <div class="dialog-info">
+          <span class="kicker">{{ selected.category }}</span>
+          <h2 id="detail-title">{{ selected.name }}</h2>
+          <p class="detail-price">¥{{ money(selected.price) }}</p>
+          <p
+            v-if="
+              selected.originalName && selected.originalName !== selected.name
+            "
+            class="original-name"
+          >
+            {{ selected.originalName }}
+          </p>
+          <p>{{ selected.description }}</p>
+          <dl v-if="specifications.length" class="product-specifications">
+            <template v-for="(spec, index) in specifications" :key="index"
+              ><dt>{{ spec.label }}</dt>
+              <dd>{{ spec.value }}</dd></template
+            >
+          </dl>
+          <p v-if="selected.sourcePrice" class="source-price">
+            原站参考价：{{ selected.sourceCurrency }}
+            {{ Number(selected.sourcePrice).toFixed(2) }} · 采集于
+            {{ selected.sourceObservedAt?.slice(0, 10)
+            }}<br />本站人民币金额为独立演示定价。
+          </p>
+          <div class="stock">
+            {{
+              selected.stock > 0
+                ? "现有库存 " + selected.stock + " 件"
+                : "暂时售罄"
+            }}
+          </div>
+          <p v-if="selected.sourceType !== 'ORIGINAL'" class="source-note">
+            {{
+              selected.sourceType === "MERCHANT_CATALOG"
+                ? "真实商品资料 · " + selected.merchantName
+                : selected.sourceType === "OPEN_LIBRARY"
+                  ? "真实书目资料 · Open Library"
+                  : "电商原型目录 · DummyJSON"
+            }}
+            <a
+              :href="selected.sourceUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              >查看来源 ↗</a
+            >
+          </p>
+          <p v-if="selected.sourceType === 'OPEN_LIBRARY'" class="image-note">
+            封面为本站原创书目示意设计，非出版社实物封面。
+          </p>
+          <p class="stage-note">
+            人民币价格和库存为课程演示数据，不代表实际销售承诺。
+          </p>
         </div>
       </div>
-      <div class="dialog-info">
-        <span class="kicker">{{ selected.category }}</span>
-        <h2 id="detail-title">{{ selected.name }}</h2>
-        <p class="detail-price">¥{{ money(selected.price) }}</p>
-        <p
-          v-if="
-            selected.originalName && selected.originalName !== selected.name
-          "
-          class="original-name"
-        >
-          {{ selected.originalName }}
-        </p>
-        <p>{{ selected.description }}</p>
-        <dl v-if="specifications.length" class="product-specifications">
-          <template v-for="(spec, index) in specifications" :key="index"
-            ><dt>{{ spec.label }}</dt>
-            <dd>{{ spec.value }}</dd></template
-          >
-        </dl>
-        <p v-if="selected.sourcePrice" class="source-price">
-          原站参考价：{{ selected.sourceCurrency }}
-          {{ Number(selected.sourcePrice).toFixed(2) }} · 采集于
-          {{ selected.sourceObservedAt?.slice(0, 10)
-          }}<br />本站人民币金额为独立演示定价。
-        </p>
-        <div class="stock">
-          {{
-            selected.stock > 0
-              ? "现有库存 " + selected.stock + " 件"
-              : "暂时售罄"
-          }}
+      <div class="product-purchase-bar">
+        <div>
+          <strong>¥{{ money(selected.price) }}</strong
+          ><span>库存 {{ selected.stock }} 件 · 课程演示购买</span>
         </div>
-        <p v-if="selected.sourceType !== 'ORIGINAL'" class="source-note">
-          {{
-            selected.sourceType === "MERCHANT_CATALOG"
-              ? "真实商品资料 · " + selected.merchantName
-              : selected.sourceType === "OPEN_LIBRARY"
-                ? "真实书目资料 · Open Library"
-                : "电商原型目录 · DummyJSON"
-          }}
-          <a
-            :href="selected.sourceUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            >查看来源 ↗</a
-          >
-        </p>
-        <p v-if="selected.sourceType === 'OPEN_LIBRARY'" class="image-note">
-          封面为本站原创书目示意设计，非出版社实物封面。
-        </p>
-        <p class="stage-note">
-          人民币价格和库存为课程演示数据，不代表实际销售承诺。
-        </p>
         <button
           class="primary"
           :disabled="selected.stock === 0"

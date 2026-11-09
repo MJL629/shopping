@@ -22,6 +22,6 @@ WORKDIR /app
 RUN mkdir -p /app/uploads && chown shop:shop /app/uploads
 COPY --from=backend --chown=shop:shop /build/backend/target/shop-0.1.0.jar app.jar
 USER shop
-ENV PORT=8080 SERVER_ADDRESS=0.0.0.0 TZ=Asia/Shanghai
+ENV PORT=8080 SERVER_ADDRESS=0.0.0.0 TZ=Asia/Shanghai SHOP_UPLOAD_DIR=/app/uploads
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=70.0", "-jar", "/app/app.jar"]
