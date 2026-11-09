@@ -12,13 +12,14 @@ Spring Boot + Vue + MySQL 校园生活选物商城，包含商品浏览、账号
 
 ## 已实现功能
 
-- 107件商品，分类、搜索、分页与详情，逐项保留资料来源。
+- 132件精选商品：100条MUJI官方文具资料、29条真实书目和3件原创样例；升级时额外保留旧购物袋中的商品。
+- 商品多图、规格、原站参考价与采集日期，逐项保留资料来源。
 - 注册、登录、注销，BCrypt密码哈希、Session及CSRF保护。
-- 购物袋增删改查，服务端计算订单金额。
+- 明确的购物袋导航、常驻结算入口、购物袋增删改查，服务端计算订单金额。
 - 下单事务、库存条件扣减、幂等处理、演示付款、取消及确认收货。
-- 管理员商品添加、编辑、下架，订单查询与发货。
+- 管理员商品添加、编辑、下架与重新上架，图片上传及预览，订单号查询与发货。
 - 邮件事务队列、延迟重试及发送记录，本机SMTP测试邮箱。
-- 销售统计、近14天销售趋势和畅销商品。
+- 销售统计、日期范围、畅销商品及CSV导出；可选择排除预置演示订单。
 - 可选32笔预置演示订单，显式标记，不冒充真实经营历史。
 
 付款不产生实际扣款或物流。邮件状态CAPTURED表示到达本地测试邮箱，不代表外部邮箱已送达。正式验收需接入实际SMTP，并核实付款要求。
@@ -43,7 +44,7 @@ Spring Boot + Vue + MySQL 校园生活选物商城，包含商品浏览、账号
 
 ## 测试与部署
 
-`python scripts/local.py build` 运行前端构建与后端测试。`python scripts/smoke_test.py` 直接检查运行中的HTTP服务、MySQL及SMTP测试收件。
+`python scripts/local.py build` 运行前端构建与后端测试。`python scripts/smoke_test.py` 检查19项购物、权限、MySQL及SMTP流程；`python scripts/admin_smoke_test.py` 另检查9项真实商品元数据、报表及上传功能。
 
 `MySqlIntegrationTest` 在配置MYSQL_TEST_URL、MYSQL_TEST_USER和MYSQL_TEST_PASSWORD时启用，其余自动测试默认使用H2兼容模式。GitHub Actions自动验证构建、数据库与部署镜像，并启动镜像运行19项购物与SMTP检查。实际验证记录见 `docs/verification.md`。
 
@@ -65,6 +66,6 @@ Spring Boot + Vue + MySQL 校园生活选物商城，包含商品浏览、账号
 
 ## 数据与AI使用
 
-商品资料包含原创文创、DummyJSON原型目录及Open Library真实书目。本站价格、库存及交易均为课程演示，详见 `docs/data-sources.md`。
+当前精选资料来自MUJI美国官方商店、Open Library及原创文创。早期DummyJSON样例作为历史兼容资料保留。来源美元价格与本站人民币演示价格分别记录；库存及交易均为课程演示，详见 `docs/data-sources.md`。
 
 AI辅助代码已注释标记，使用记录在 `docs/ai-usage.md`。提交者仍需理解核心逻辑，并按课程规定补充本人的审阅和修改情况。
