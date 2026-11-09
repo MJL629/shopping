@@ -2,6 +2,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { request } from "../lib/api";
+import { validReportRange } from '../lib/report-range';
 import { notify, money, statuses, time } from "../lib/shop";
 const tab = ref("overview"),
   stats = ref(null),
@@ -75,6 +76,7 @@ const trend = computed(() => {
   }));
 });
 async function load() {
+  if (tab.value==='overview' && !validReportRange(fromDate.value,toDate.value)) { notify('请选择前后顺序正确且不超过一年的日期范围','error');return; }
   loading.value = true;
   error.value = "";
   try {
@@ -150,6 +152,7 @@ async function restore(product) {
   }
 }
 async function exportReport() {
+  if(!validReportRange(fromDate.value,toDate.value)){notify('请先修正报表日期范围','error');return;}
   try {
     const blob = await request("/admin/reports/sales.csv?" + reportQuery(), {
       responseType: "blob",
@@ -333,7 +336,7 @@ onMounted(load);
           <h2>所选日期销售趋势</h2>
           <span>按付款日期统计</span>
         </div>
-        <div class="bar-chart" role="img" aria-label="最近14天每天销售额柱状图">
+        <div class="bar-chart" role="img" :aria-label="stats.range.from+'至'+stats.range.to+'每天销售额柱状图'">
           <div
             v-for="point in trend"
             :key="point.day"
@@ -403,7 +406,7 @@ onMounted(load);
       </article>
     </div>
     <div class="dashboard-note">
-      统计包含预置演示订单与本次体验订单；价格与付款均为课程演示，不代表真实经营收入。
+      {{ stats.range.includeSamples ? '统计包含预置演示订单与本次体验订单' : '已排除预置演示订单，仅统计本次体验订单' }}；价格与付款均为课程演示，不代表真实经营收入。
     </div>
   </section>
   <section v-else-if="tab === 'products'">
