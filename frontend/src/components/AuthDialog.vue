@@ -33,6 +33,8 @@ async function submit() {
           : form.value,
     });
     shop.user = await session();
+    if (shop.previousUserId && shop.previousUserId !== shop.user.id) shop.checkoutDraft = null;
+    shop.previousUserId = shop.user.id;
     await refreshCart();
     shop.authOpen = false;
     notify("欢迎回来，" + shop.user.displayName + "。");

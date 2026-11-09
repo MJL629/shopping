@@ -1,7 +1,9 @@
 <!-- AI-assisted implementation with Codex. Product content is loaded from Spring Boot/MySQL. -->
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { addToCart } from "./lib/shop";
+import { addToCart, shop } from "./lib/shop";
+import { parseCatalogState, catalogHash } from './lib/catalog-state';
+const initialState = window.location.hash.includes('?') ? parseCatalogState(window.location.hash) : shop.catalogState;
 async function addSelected() {
   dialog.value.close();
   await addToCart(selected.value.id);
@@ -9,10 +11,10 @@ async function addSelected() {
 const items = ref([]),
   categories = ref([]),
   total = ref(0),
-  page = ref(1);
-const keyword = ref(""),
-  sort = ref("featured"),
-  category = ref(""),
+  page = ref(initialState.page);
+const keyword = ref(initialState.keyword),
+  sort = ref(initialState.sort),
+  category = ref(initialState.category),
   loading = ref(false),
   error = ref("");
 const selected = ref(null),
@@ -31,7 +33,12 @@ async function readJson(url, signal) {
     );
   return response.json();
 }
-async function loadProducts() {
+function remember() {
+  shop.catalogState = {keyword: keyword.value, category: category.value, sort: sort.value, page: page.value, scrollY: window.scrollY};
+  window.history.replaceState(null, '', catalogHash(shop.catalogState));
+}
+async function loadProducts(scrollToList = false) {
+  remember();
   listRequest?.abort();
   const request = new AbortController();
   listRequest = request;
@@ -57,10 +64,14 @@ async function loadProducts() {
   } finally {
     if (listRequest === request) loading.value = false;
   }
+  if (listRequest === request && !error.value && scrollToList) {
+    await nextTick();
+    document.getElementById('collection')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
 }
 function search() {
   page.value = 1;
-  loadProducts();
+  loadProducts(true);
 }
 function chooseCategory(value) {
   category.value = value;
@@ -68,7 +79,7 @@ function chooseCategory(value) {
 }
 function changePage(value) {
   page.value = value;
-  loadProducts();
+  loadProducts(true);
 }
 function reset() {
   keyword.value = "";
@@ -89,7 +100,9 @@ async function showProduct(id) {
   }
 }
 onMounted(async () => {
-  loadProducts();
+  const restoreY = initialState.scrollY || 0;
+  await loadProducts();
+  await nextTick(); window.scrollTo({top: restoreY, behavior:'instant'});
   try {
     categories.value = await readJson("/api/categories");
   } catch {
@@ -97,6 +110,7 @@ onMounted(async () => {
   }
 });
 onBeforeUnmount(() => {
+  shop.catalogState.scrollY = window.scrollY;
   listRequest?.abort();
   detailRequest?.abort();
 });
@@ -110,7 +124,7 @@ const money = (value) => Number(value).toFixed(2);
         <span class="kicker">A LITTLE JOY, EVERY DAY</span>
         <h1 id="hero-title">把日常，<br />过成喜欢的样子。</h1>
         <p>
-          一页笔记，一只布袋，一枚书签。<br />从校园里的小物开始，收集平凡日子的灵感。
+          书写、阅读、轻装出发。<br />为学习与生活，挑选顺手又喜欢的日常好物。
         </p>
         <a class="browse" href="#collection">发现日常选物 <span>↓</span></a>
       </div>

@@ -4,4 +4,5 @@ import App from "./App.vue";
 import "./style.css";
 import "./app.css";
 import "./refinements.css";
+import "./improvements.css";
 createApp(App).mount("#app");

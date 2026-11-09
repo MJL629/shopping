@@ -47,7 +47,7 @@ jobs:
         run: pnpm exec vite build
       - name: Verify timestamp display
         working-directory: frontend
-        run: node --test test/format.test.js
+        run: node --test
       - name: Verify local SMTP inbox
         run: python3 scripts/test_mail_capture.py
       - name: Verify Spring Boot backend

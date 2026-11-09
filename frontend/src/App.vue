@@ -1,6 +1,6 @@
 <!-- AI-assisted application shell with Codex. -->
 <script setup>
-import { onMounted, onBeforeUnmount } from "vue";
+import { onMounted, onBeforeUnmount, nextTick } from "vue";
 import HomeView from "./HomeView.vue";
 import CartView from "./views/CartView.vue";
 import OrdersView from "./views/OrdersView.vue";
@@ -11,13 +11,14 @@ import { request, session } from "./lib/api";
 function routeChanged() {
   const hash = window.location.hash.slice(1);
   shop.route = hash.startsWith("/") ? hash.split("?")[0] : "/";
-  if (hash.startsWith("/")) window.scrollTo({ top: 0 });
+  if (hash.startsWith("/") && shop.route !== '/') nextTick(() => window.scrollTo({ top: 0 }));
 }
 async function logout() {
   try {
     await request("/auth/logout", { method: "POST" });
     shop.user = null;
     shop.cartQuantity = 0;
+    shop.checkoutDraft = null;
     await session();
     navigate("/");
     notify("已安全退出，下次再来逛逛。");
@@ -43,6 +44,7 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", routeChanged));
     >
     <nav aria-label="主导航">
       <a href="#/" :class="{ current: shop.route === '/' }">日常选物</a
+      ><a href="#/cart" :class="{ current: shop.route === '/cart' }">购物袋 <span class="nav-count">{{ shop.cartQuantity }}</span></a
       ><a href="#/orders" :class="{ current: shop.route === '/orders' }"
         >我的订单</a
       ><a
@@ -75,7 +77,7 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", routeChanged));
             stroke="currentColor"
             stroke-width="1.5"
           /></svg
-        ><span>{{ shop.cartQuantity }}</span></a
+        ><span class="bag-label">购物袋</span><span>{{ shop.cartQuantity }}</span></a
       >
     </div>
   </header>
@@ -100,6 +102,10 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", routeChanged));
       <a class="primary" href="#/">回到小铺</a>
     </section>
   </main>
+  <aside v-if="shop.cartQuantity > 0 && shop.route !== '/cart'" class="cart-dock" aria-label="购物袋快捷入口">
+    <div><strong>{{ shop.cartQuantity }} 件已在购物袋</strong><span>随时查看，确认后再下单</span></div>
+    <a href="#/cart" class="primary">查看购物袋并结算 <span aria-hidden="true">↗</span></a>
+  </aside>
   <footer class="site-footer">
     <div>
       <a class="footer-brand" href="#/">拾光小铺</a>

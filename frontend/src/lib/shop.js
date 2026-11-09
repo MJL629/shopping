@@ -1,6 +1,6 @@
 // AI-assisted shared UI state with Codex.
 import { reactive } from "vue";
-import { request, session } from "./api";
+import { request, session, setAuthenticationRequired } from "./api";
 export const shop = reactive({
   user: null,
   ready: false,
@@ -10,6 +10,16 @@ export const shop = reactive({
   toastKind: "success",
   route: "/",
   pendingProduct: null,
+  previousUserId: null,
+  checkoutDraft: null,
+  catalogState: { keyword: '', category: '', sort: 'featured', page: 1, scrollY: 0 },
+});
+setAuthenticationRequired(() => {
+  if (shop.user) shop.previousUserId = shop.user.id;
+  shop.user = null;
+  shop.cartQuantity = 0;
+  shop.authOpen = true;
+  notify('登录已过期，请重新登录后继续，购物袋仍会为你保留。', 'error');
 });
 let toastTimeout;
 export function notify(text, kind = "success") {
@@ -51,10 +61,11 @@ export async function addToCart(productId, quantity = 1) {
       body: { productId, quantity },
     });
     shop.cartQuantity = cart.quantity;
-    notify("已放进购物袋，喜欢的小物替你留好了。");
+    notify("已加入购物袋，可通过页面下方“查看购物袋并结算”继续下单。");
     return true;
   } catch (e) {
     if (e.status === 401) {
+      shop.pendingProduct = { productId, quantity };
       shop.user = null;
       shop.authOpen = true;
     }
